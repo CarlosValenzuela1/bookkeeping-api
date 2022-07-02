@@ -15,7 +15,7 @@ Python program to generate bookkeeping data for payments. The bookkeeping data i
 
   ##  Pre-requisites
 
-Please ensure that you have **Python 3.9+** and **pipenv** installed.
+Please ensure that you have **Python 3.9+** installed.
 
 ### Python
 Python 3.9 is needed since the coding using one of its features (being able to use built-in collections types for type hinting, instead of having to import them).
@@ -23,21 +23,14 @@ Python 3.9 is needed since the coding using one of its features (being able to u
 More details can be found here:
 [Python 3.9 Docs](https://docs.python.org/3/whatsnew/3.9.html#type-hinting-generics-in-standard-collections)
 
- ### Pipenv
-If you don't have it installed, please follow the instructions from [here](https://pipenv.pypa.io/en/latest/install/).
-```
-pip install --user pipenv
-```
-*Make sure it's also added to your PATH*
 
 ##  How to run application
 
 Assuming that pipenv and python 3.9+ are already install in your machine.
 ```
-# Requirements installation and virtual environment creation
+# Requirements installation
 cd bookkeeping-api
-pipenv install
-pipenv shell
+pip install -r requirements.txt
 
 # Application execution
 export FLASK_APP=src/app.py

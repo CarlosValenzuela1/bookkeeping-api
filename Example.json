@@ -1,0 +1,34 @@
+{
+    "invoice_lines":
+    [
+        {
+            "description": "Holvi T-shirt",
+            "quantity": 2,
+            "category": "Clothes",
+            "unit_price_net": "25.00"
+        },
+        {
+            "description": "Holvi hoodie",
+            "quantity": 1,
+            "category": "Clothes",
+            "unit_price_net": "40.00"
+        },
+        {
+            "description": "Holvi poster",
+            "quantity": 4,
+            "category": "Posters",
+            "unit_price_net": "40.00"
+        }
+    ],
+    "payments":
+    [
+        {
+            "id": 1,
+            "amount": "50.00"
+        },
+        {
+            "id": 2,
+            "amount": "200.00"
+        }
+    ]
+}

@@ -1,128 +1,90 @@
-from decimal import Decimal
-from collections import Counter
 import json
+from collections import Counter
+from decimal import Decimal
 
 
-def get_bookkipping(payload):
-    validate(payload)
-    products = payload["invoice_lines"]
-    payments = payload["payments"]
+def calculate_bookkeeping(payload: dict) -> dict:
+    """
+    Main method to calculate the bookkeeping (categorisations)
+    """
+    products = payload['invoice_lines']
+    payments = payload['payments']
 
     categories = get_categories(products)
-    all_products_total = get_products_total(products)
-    total_per_category = get_total_per_category(products, categories)
-    percentage_per_category = get_percentage_per_category(total_per_category, all_products_total)
-    categorizations = calculate_categorizations(payments, percentage_per_category)
-    return json.dumps(categorizations)
+    products_total = sum_products_total(products)
+    total_per_category = calculate_total_per_category(products, categories)
+    percentage_per_category = calculate_percentage_per_category(total_per_category, products_total)
+
+    categorisations = calculate_categorisations(payments, percentage_per_category)
+
+    return json.dumps(categorisations)
 
 
 def get_categories(products: list) -> list[str]:
     """
-    Get a list of all products
+    Get a list of all categories
     """
-    return {i["category"] for i in products}
+    return {i['category'].capitalize() for i in products}
 
 
-def get_products_total(products: list) -> Decimal:
+def sum_products_total(products: list) -> Decimal:
     """
-    Get all the products total by adding each item price * quantity
+    Sum the total amount of all products by adding each item price * quantity
     """
-    return sum(Decimal(prod["unit_price_net"]) * Decimal(prod["quantity"]) for prod in products)
+    return sum(Decimal(prod['unit_price_net']) * Decimal(prod['quantity']) for prod in products)
 
 
-def get_total_per_category(products: list, categories: list) -> dict:
+def calculate_total_per_category(products: list, categories: list) -> dict:
     """
-    Get category total by adding each item price * quantity of the same category and return it as a dict
+    Calculates the sum of all products' amount, by adding each item price * quantity of the same category and return it as a dict. Ex: {'Clothes': 5.00, 'Bags': 10.00}
     """
-    # Counter will contain the total sum of each category. Ex: {'Clothes': 5.00}, {'Bags': 10.00}, etc
     counter = Counter()
     for prod in products:
-        if prod["category"] in categories:
+        if prod['category'].capitalize() in categories:
             # This sums all items price of the same category
-            counter.update({prod["category"]: Decimal(prod["unit_price_net"]) * Decimal(prod["quantity"])})
+            counter.update({prod['category'].capitalize(): Decimal(prod['unit_price_net']) * Decimal(prod['quantity'])})
     return dict(counter)
 
 
-def get_percentage_per_category(total_per_category: dict, all_products_total: Decimal) -> dict:
+def calculate_percentage_per_category(total_per_category: dict, all_products_total: Decimal) -> dict:
+    """
+    Calculates the percentage needed for categorization for each category, by dividing the category total by all products total. Ex: {'Clothes': '0.05..8', 'Posters': '0.05..8'}
+    """
     percentage_per_category = total_per_category.copy()
 
     for category, total in total_per_category.items():
         percentage_per_category[category] = total/all_products_total
     return percentage_per_category
 
-# Original
-# def calculate_categorizations(payments: list, percentage_per_category: dict) -> dict:
-#     categorizations = []
-#     for paymnt in payments:
-#         dictionary = {"id": paymnt["id"], "categorizations": []}
-#         for category, percentage in percentage_per_category.items():
-#             # Each category dictionary looks like this: {'category': 'Clothes', 'net_amount': '18.00'}
-#             result = get_category_dictionary(category, percentage, paymnt["amount"])
-#             dictionary["categorizations"].append(result)
-#         categorizations.append(dictionary)
 
-#     print(f"{categorizations=}")
-#     return categorizations
-
-
-def calculate_categorizations(payments: list, percentage_per_category: dict) -> dict:
-    categorizations = []
+def calculate_categorisations(payments: list, percentage_per_category: dict) -> dict:
+    """
+    Calculates the payment of each categorization and for each category, rounding where needed
+    """
+    categorisations = []
 
     for paymnt in payments:
-        print(f"Type?: {type(paymnt['amount'])}")
         estimated_amount = Decimal(0)
-        dictionary = {"id": paymnt["id"], "categorizations": []}
+        dictionary = {'id': paymnt['id'], 'categorisations': []}
 
         for index, (category, percentage) in enumerate(percentage_per_category.items()):
-            print(f"index: {index}, key: {category}, value: {percentage}")
-            net_amount = decimal_to_str((percentage * Decimal(paymnt['amount'])))
-            estimated_amount += Decimal(net_amount)
+            current_category_amount = '{:.2f}'.format(percentage * Decimal(paymnt['amount']))
+            estimated_amount += Decimal(current_category_amount)
 
+            # At the last category of the current payment, we verify that our estimated amount and the expected amount (paymnt['amount']) is the same, otherwise we round it
             if index == len(percentage_per_category) - 1 and estimated_amount != Decimal(paymnt['amount']):
-                net_amount = rounder(paymnt['amount'], net_amount, estimated_amount)
+                current_category_amount = rounder(paymnt['amount'], current_category_amount, estimated_amount)
 
-            dictionary["categorizations"].append({"category": category, "net_amount": net_amount})
+            dictionary['categorisations'].append({'category': category, 'net_amount': current_category_amount})
 
-        categorizations.append(dictionary)
+        categorisations.append(dictionary)
 
-    print(f"{categorizations=}")
-    return categorizations
+    return categorisations
 
 
-def rounder(total_amount, net_amount, estimated_amount):
+def rounder(total_amount: str, current_amount: str, estimated_amount: Decimal) -> str:
+    """
+    Sums the offset needed to have an exact match between the expected amount and the calculated amount
+    """
     offset = Decimal(total_amount) - estimated_amount
-    net_amount = Decimal(net_amount) + offset
-    return str(net_amount)
-
-
-# def get_category_dictionary(category, percentage, payment_amount):
-#     print(f"{percentage=}")
-#     net_amount = decimal_to_str((percentage * Decimal(payment_amount)))
-#     return {"category": category, "net_amount": net_amount}
-
-
-def decimal_to_str(amount: Decimal) -> str:
-    return f"{amount:.2f}"
-
-
-# def round_categorization(categorizations: list, payments: list) -> list:
-#     # [print(f"{i['categorizations']=}") for i in categorization]
-#     [[print(f"{j['net_amount']}") for j in i['categorizations']] for i in categorizations]
-#     # [[j for j in range(5)] for i in range(5)]
-
-#     for each_id in categorizations:
-#         amounts = []
-#         for category in each_id["categorizations"]:
-#             print(category['net_amount'])
-#             amounts.append(category['net_amount'])
-
-#     return categorizations
-
-
-def validate(payload):
-    pass
-
-
-def print_list(lista):
-    for i in lista:
-        print(f"{i=}")
+    return str(Decimal(current_amount) + offset)
